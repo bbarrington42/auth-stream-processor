@@ -1,0 +1,15 @@
+logs
+target
+.idea
+.idea_modules
+.classpath
+.project
+.settings
+lib_managed
+project/project
+project/target
+tmp
+dist
+.cache
+*.gz
+*.log

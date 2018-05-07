@@ -63,6 +63,7 @@ object AuthAnalyzer {
         update(queue.take())
         logger.info(s"analyzer status: $map")
       }
+    logger.info(s"${getClass.getName} shutting down...")
   }
 
   // Begin processing

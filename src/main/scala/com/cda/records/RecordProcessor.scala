@@ -33,12 +33,13 @@ object RecordProcessor extends IRecordProcessor {
 
   private def find(record: Record): Option[FailureEvent] = find(toString(record.getData))
 
+  // todo
   override def initialize(initializationInput: InitializationInput): Unit = ???
 
-  override def processRecords(input: ProcessRecordsInput): Unit = {
-    // Filter for errors and send them to the analyzer
+  // Filter for errors and send them to the analyzer
+  override def processRecords(input: ProcessRecordsInput): Unit =
     input.getRecords.asScala.foreach(find(_).foreach(AuthAnalyzer.enqueue(_)))
-  }
+
 
   override def shutdown(shutdownInput: ShutdownInput): Unit = {
     AuthAnalyzer.shutdown()

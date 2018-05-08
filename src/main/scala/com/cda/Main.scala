@@ -5,7 +5,6 @@ import java.util.UUID
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
-import com.cda.metrics.AuthAnalyzer
 import com.cda.records.RecordProcessorFactory
 import org.slf4j.LoggerFactory
 
@@ -35,8 +34,6 @@ object Main {
   def main(args: Array[String]): Unit = {
     // Ensure the JVM will refresh the cached IP values of AWS resources (e.g. service endpoints).
     java.security.Security.setProperty("networkaddress.cache.ttl", "60")
-
-    AuthAnalyzer.run()
 
     val worker = new Worker.Builder().recordProcessorFactory(RecordProcessorFactory).config(config).build()
 

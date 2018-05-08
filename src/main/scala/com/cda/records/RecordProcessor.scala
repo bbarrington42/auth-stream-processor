@@ -33,21 +33,20 @@ object RecordProcessor extends IRecordProcessor {
 
   val decoder = Charset.forName("UTF-8").newDecoder
 
-  // TODO Make sure this will work for all cases
   // For this app, we interpret the payload as UTF-8 chars.
-  private def toString(bb: ByteBuffer): Throwable \/ String = \/.fromTryCatchNonFatal {
-    val rv = decoder.decode(bb).toString
-    logger.info(s"Received record: $rv")
-    rv
-  }
+  private def toString(bb: ByteBuffer): Throwable \/ String =
+    \/.fromTryCatchNonFatal {
+      decoder.decode(bb).toString
+    }
 
   private def toDate(text: String): LocalDateTime =
     LocalDateTime.parse(text, datePattern)
 
-  private def find(s: String): Option[FailureEvent] = {
-    val option = authResponseRegex.findFirstMatchIn(s).map(m =>
+  private def find(text: String): Option[FailureEvent] = {
+    val option = authResponseRegex.findFirstMatchIn(text).map(m =>
       FailureEvent(toDate(m.group(1)), m.group(2)))
-    logger.info(s"Event: $option")
+
+    option.foreach(event => logger.info(event.toString))
     option
   }
 
@@ -69,7 +68,12 @@ object RecordProcessor extends IRecordProcessor {
   override def processRecords(input: ProcessRecordsInput): Unit = {
     logger.info(s"Processing ${input.getRecords.size()} records")
     input.getRecords.asScala.foreach(find(_).foreach(AuthAnalyzer.enqueue(_)))
-    input.getCheckpointer.checkpoint()
+    try {
+      input.getCheckpointer.checkpoint()
+    } catch {
+      case thr: Throwable =>
+        logger.error(s"Checkpoint failed - ${asString(thr)}")
+    }
   }
 
 

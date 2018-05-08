@@ -37,16 +37,7 @@ object AuthAnalyzer {
 
   private var active = true
 
-  def enqueue(failure: FailureEvent): Unit = {
-    logger.info(s"Enqueueing: $failure")
-    queue.put(failure)
-  }
-
-  def run(): Unit = {
-    logger.info(s"${getClass.getName} is starting")
-    active = true
-    new Thread(runnable).start()
-  }
+  def enqueue(failure: FailureEvent): Unit = queue.put(failure)
 
   def shutdown(): Unit = active = false
 
@@ -78,11 +69,13 @@ object AuthAnalyzer {
         logger.info(s"analyzer status: $map")
       } catch {
         case t: Throwable =>
-          logger.error(asString(t))
+          logger.error(s"Map update failed - ${asString(t)}")
       }
 
       logger.info(s"${getClass.getName} shutting down...")
     }
   }
+
+  new Thread(runnable).start()
 
 }

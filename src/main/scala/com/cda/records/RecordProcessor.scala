@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
 object RecordProcessor extends IRecordProcessor {
 
   // This is an example of a log record we are trying to match
-  // 2018-05-07 19:30:53,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth request: status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,"error_description":"unknown access token","error":"invalid_argument","stat":"error"}
+  // 2018-05-07 19:30:53,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth response: status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,"error_description":"unknown access token","error":"invalid_argument","stat":"error"}
   val authResponseRegex =
   """(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).+janrain auth response: status=error, token=([^,]+)""".r
 
@@ -32,12 +32,12 @@ object RecordProcessor extends IRecordProcessor {
     new String(bytes, Charset.defaultCharset)
   }
 
-  private def parseDate(text: String): Long =
-    LocalDateTime.parse(text, datePattern).atZone(zone).toInstant.toEpochMilli
+  private def toDate(text: String): LocalDateTime =
+    LocalDateTime.parse(text, datePattern)
 
   private def find(s: String): Option[FailureEvent] =
     authResponseRegex.findFirstMatchIn(s).map(m =>
-      FailureEvent(parseDate(m.group(1)), m.group(2)))
+      FailureEvent(toDate(m.group(1)), m.group(2)))
 
   private def find(record: Record): Option[FailureEvent] = find(toString(record.getData))
 
@@ -56,7 +56,7 @@ object RecordProcessor extends IRecordProcessor {
   }
 
   def main(args: Array[String]): Unit = {
-    val s = "2018-05-07 19:31:00,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth request: status=error, token=gb5hxgc5sthrag4z, response={\"request_id\":\"x955wtqpusset6a9\",\"code\":200,\"error_description\":\"unknown access token\",\"error\":\"invalid_argument\",\"stat\":\"error\"}"
+    val s = "2018-05-07 19:31:01,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth response: status=error, token=gb5hxgc5sthrag4z, response={\"request_id\":\"x955wtqpusset6a9\",\"code\":200,\"error_description\":\"unknown access token\",\"error\":\"invalid_argument\",\"stat\":\"error\"}"
     println(find(s))
   }
 }

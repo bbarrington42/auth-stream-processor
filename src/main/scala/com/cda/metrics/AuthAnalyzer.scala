@@ -1,5 +1,6 @@
 package com.cda.metrics
 
+import java.time.{Duration, LocalDateTime}
 import java.util.concurrent.LinkedBlockingQueue
 
 import org.slf4j.LoggerFactory
@@ -14,21 +15,22 @@ object AuthAnalyzer {
 
   val logger = LoggerFactory.getLogger(getClass)
 
-  // todo Use configuration file
-  val threshold = 30 * 1000L // 30 seconds
+  // todo Use configuration file for value
+  val threshold = Duration.ofSeconds(30)
 
   // All auth failures are sent to this AuthAnalyzer.
   // The 'token' is unique for a request and is used to match any
   // subsequent failures occurring within a predetermined time window.
-  case class FailureEvent(timestamp: Long, token: String)
+  case class FailureEvent(timestamp: LocalDateTime, token: String)
 
-  case class FailureCount(timestamp: Long, count: Int = 0)
+  case class FailureCount(timestamp: LocalDateTime, count: Int = 0)
 
   private val queue = new LinkedBlockingQueue[FailureEvent]
   private var map = Map.empty[String, FailureCount]
 
-  private def withinThreshold(timestamp1: Long, timestamp2: Long): Boolean =
-    Math.abs(timestamp1 - timestamp2) < threshold
+  private def withinThreshold(start: LocalDateTime, end: LocalDateTime): Boolean =
+    Duration.between(start, end).compareTo(threshold) <= 0
+
 
   private var active = true
 

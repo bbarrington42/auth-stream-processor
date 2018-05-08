@@ -39,24 +39,19 @@ object RecordProcessor extends IRecordProcessor {
       decoder.decode(bb).toString
     }
 
-  private def toDate(text: String): LocalDateTime =
-    LocalDateTime.parse(text, datePattern)
-
   private def find(text: String): Option[FailureEvent] = {
     val option = authResponseRegex.findFirstMatchIn(text).map(m =>
-      FailureEvent(toDate(m.group(1)), m.group(2)))
+      FailureEvent(LocalDateTime.parse(m.group(1), datePattern), m.group(2)))
 
     option.foreach(event => logger.info(event.toString))
     option
   }
 
   private def find(record: Record): Option[FailureEvent] = {
-    toString(record.getData) match {
-      case -\/(t) =>
-        logger.error(asString(t))
-        None
-      case \/-(s) => find(s)
-    }
+    toString(record.getData).fold(thr => {
+      logger.error(asString(thr))
+      None
+    }, find)
   }
 
 

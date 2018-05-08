@@ -34,7 +34,6 @@ object AuthAnalyzer {
 
   private val queue = new LinkedBlockingQueue[FailureEvent]
 
-  // todo Synchronized map?
   private var map = Map.empty[String, FailureCount]
 
   private def withinThreshold(start: LocalDateTime, end: LocalDateTime): Boolean =

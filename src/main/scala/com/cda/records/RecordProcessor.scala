@@ -2,14 +2,18 @@ package com.cda.records
 
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDateTime, ZoneId}
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
+import com.cda._
 import com.cda.metrics.AuthAnalyzer
 import com.cda.metrics.AuthAnalyzer.FailureEvent
+import org.slf4j.LoggerFactory
+import scalaz.{-\/, \/, \/-}
 
 import scala.collection.JavaConverters._
 
@@ -18,47 +22,66 @@ import scala.collection.JavaConverters._
  */
 object RecordProcessor extends IRecordProcessor {
 
+  val logger = LoggerFactory.getLogger(getClass)
+
   // This is an example of a log record we are trying to match
   // 2018-05-07 19:30:53,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth response: status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,"error_description":"unknown access token","error":"invalid_argument","stat":"error"}
   val authResponseRegex =
   """(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).+janrain auth response: status=error, token=([^,]+)""".r
 
   val datePattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-  val zone = ZoneId.of("America/New_York")
+
+  val decoder = Charset.forName("UTF-8").newDecoder
 
   // TODO Make sure this will work for all cases
-  private def toString(bb: ByteBuffer): String = {
-    val bytes = Array.ofDim[Byte](bb.remaining)
-    new String(bytes, Charset.defaultCharset)
+  // For this app, we interpret the payload as UTF-8 chars.
+  private def toString(bb: ByteBuffer): Throwable \/ String = \/.fromTryCatchNonFatal {
+    val rv = decoder.decode(bb).toString
+    logger.info(s"Received record: $rv")
+    rv
   }
 
   private def toDate(text: String): LocalDateTime =
     LocalDateTime.parse(text, datePattern)
 
-  private def find(s: String): Option[FailureEvent] =
-    authResponseRegex.findFirstMatchIn(s).map(m =>
+  private def find(s: String): Option[FailureEvent] = {
+    val option = authResponseRegex.findFirstMatchIn(s).map(m =>
       FailureEvent(toDate(m.group(1)), m.group(2)))
+    logger.info(s"Event: $option")
+    option
+  }
 
-  private def find(record: Record): Option[FailureEvent] = find(toString(record.getData))
+  private def find(record: Record): Option[FailureEvent] = {
+    toString(record.getData) match {
+      case -\/(t) =>
+        logger.error(asString(t))
+        None
+      case \/-(s) => find(s)
+    }
+  }
 
-  // todo
-  override def initialize(initializationInput: InitializationInput): Unit = ???
+
+  override def initialize(initializationInput: InitializationInput): Unit =
+    logger.info(s"Initializing processor for shard: ${initializationInput.getShardId}")
+
 
   // Filter for errors and send them to the analyzer
-  override def processRecords(input: ProcessRecordsInput): Unit =
+  override def processRecords(input: ProcessRecordsInput): Unit = {
+    logger.info(s"Processing ${input.getRecords.size()} records")
     input.getRecords.asScala.foreach(find(_).foreach(AuthAnalyzer.enqueue(_)))
+    input.getCheckpointer.checkpoint()
+  }
 
 
   override def shutdown(shutdownInput: ShutdownInput): Unit = {
+    val reason = shutdownInput.getShutdownReason
+    logger.info(s"Shutting down, reason: $reason")
     AuthAnalyzer.shutdown()
 
-    // todo
+    if (ShutdownReason.TERMINATE == reason)
+      shutdownInput.getCheckpointer.checkpoint()
   }
 
-  def main(args: Array[String]): Unit = {
-    val s = "2018-05-07 19:31:01,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth response: status=error, token=gb5hxgc5sthrag4z, response={\"request_id\":\"x955wtqpusset6a9\",\"code\":200,\"error_description\":\"unknown access token\",\"error\":\"invalid_argument\",\"stat\":\"error\"}"
-    println(find(s))
-  }
 }
 
 

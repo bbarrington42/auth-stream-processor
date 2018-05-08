@@ -2,6 +2,8 @@ package com.cda.records
 
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import java.time.format.DateTimeFormatter
+import java.time.{LocalDateTime, ZoneId}
 
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
@@ -12,14 +14,17 @@ import com.cda.metrics.AuthAnalyzer.FailureEvent
 import scala.collection.JavaConverters._
 
 /*
-  Filters occurrences of responses to janrain auth requests and sends them to AuthAnalyzer.
+  Extract occurrences of responses to janrain auth requests and sends them to AuthAnalyzer.
  */
 object RecordProcessor extends IRecordProcessor {
 
   // This is an example of a log record we are trying to match
-  // janrain auth request: status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,"error_description":"unknown access token","error":"invalid_argument","stat":"error"}
+  // 2018-05-07 19:30:53,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth request: status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,"error_description":"unknown access token","error":"invalid_argument","stat":"error"}
+  val authResponseRegex =
+  """(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).+janrain auth response: status=error, token=([^,]+)""".r
 
-  val authResponseRegex = """janrain auth request: status=error, token=([^,]+)""".r
+  val datePattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+  val zone = ZoneId.of("America/New_York")
 
   // TODO Make sure this will work for all cases
   private def toString(bb: ByteBuffer): String = {
@@ -27,9 +32,12 @@ object RecordProcessor extends IRecordProcessor {
     new String(bytes, Charset.defaultCharset)
   }
 
+  private def parseDate(text: String): Long =
+    LocalDateTime.parse(text, datePattern).atZone(zone).toInstant.toEpochMilli
+
   private def find(s: String): Option[FailureEvent] =
     authResponseRegex.findFirstMatchIn(s).map(m =>
-      FailureEvent(System.currentTimeMillis(), m.group(1)))
+      FailureEvent(parseDate(m.group(1)), m.group(2)))
 
   private def find(record: Record): Option[FailureEvent] = find(toString(record.getData))
 
@@ -45,6 +53,11 @@ object RecordProcessor extends IRecordProcessor {
     AuthAnalyzer.shutdown()
 
     // todo
+  }
+
+  def main(args: Array[String]): Unit = {
+    val s = "2018-05-07 19:31:00,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth request: status=error, token=gb5hxgc5sthrag4z, response={\"request_id\":\"x955wtqpusset6a9\",\"code\":200,\"error_description\":\"unknown access token\",\"error\":\"invalid_argument\",\"stat\":\"error\"}"
+    println(find(s))
   }
 }
 

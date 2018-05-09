@@ -69,7 +69,7 @@ object AuthAnalyzer {
   }
 
   // Obtain a copy of the map containing all entries with a count > 0 and reset the map
-  private def resetMap(): Map[String, FailureCount] = map.synchronized {
+  private def getFailures(): Map[String, FailureCount] = map.synchronized {
     val filtered = map.filter { case (_, failure) => failure.count > 0 }
     map = map.empty
     filtered
@@ -83,7 +83,7 @@ object AuthAnalyzer {
     })
 
   private def doMetrics(): Unit = {
-    val failures = resetMap()
+    val failures = getFailures()
     val count = failures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
     logger.info(s"$count auth failures in $metricsInterval")
     // todo Generate AWS Metric here
@@ -102,7 +102,7 @@ object AuthAnalyzer {
           logger.error(s"Map update failed - ${asString(t)}")
       }
 
-      logger.error(s"${getClass.getName} shutting down...")
+      logger.error(s"${getClass.getName} is exiting...")
     }
   }
 

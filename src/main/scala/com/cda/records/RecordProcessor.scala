@@ -1,6 +1,5 @@
 package com.cda.records
 
-import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -41,36 +40,26 @@ object RecordProcessor extends IRecordProcessor {
 
   val decoder = Charset.forName("UTF-8").newDecoder
 
-  // For this app, we interpret the payload as UTF-8 chars.
-  private def toString(bb: ByteBuffer): Throwable \/ String =
-    \/.fromTryCatchNonFatal {
-      decoder.decode(bb).toString
-    }
-
-  private def find(text: String): Option[FailureEvent] = {
-    val option = authResponseRegex.findFirstMatchIn(text).map(m =>
+  // Apply regex and convert to FailureEvent if there is a match
+  private def find(text: String): Option[FailureEvent] =
+    authResponseRegex.findFirstMatchIn(text).map(m =>
       FailureEvent(LocalDateTime.parse(m.group(1), datePattern), m.group(2)))
 
-    option.foreach(event => logger.info(event.toString))
-    option
-  }
-
-  private def find(record: Record): Option[FailureEvent] = {
-    toString(record.getData).fold(thr => {
-      logger.error(asString(thr))
-      None
-    }, find)
-  }
+  // Interpret the payload as UTF-8 chars.
+  private def find(record: Record): Throwable \/ Option[FailureEvent] =
+    \/.fromTryCatchNonFatal(find(decoder.decode(record.getData).toString))
 
 
   override def initialize(initializationInput: InitializationInput): Unit =
-    logger.info(s"Initializing processor for shard: ${initializationInput.getShardId}")
+    logger.info(s"Initializing... ${initializationInput.getShardId}")
 
 
   // Filter for errors and send them to the analyzer
   override def processRecords(input: ProcessRecordsInput): Unit = {
     logger.info(s"Processing ${input.getRecords.size()} records")
-    input.getRecords.asScala.foreach(find(_).foreach(AuthAnalyzer.enqueue(_)))
+    input.getRecords.asScala.foreach(find(_).fold(
+      thr => logger.error(s"Record processing error - ${asString(thr)}"),
+      _.foreach(AuthAnalyzer.enqueue(_))))
     try {
       input.getCheckpointer.checkpoint()
     } catch {

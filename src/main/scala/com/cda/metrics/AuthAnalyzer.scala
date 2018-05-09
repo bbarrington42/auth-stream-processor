@@ -37,14 +37,13 @@ object AuthAnalyzer {
   val credentialsProvider = new ProfileCredentialsProvider("cda")
   val cloudWatchClient = AmazonCloudWatchClientBuilder.standard().withCredentials(credentialsProvider).build()
 
-  private var failureCount = 0d
 
-  // todo For some reason this metric is not showing up
+
   val authFailures = new CloudWatchValueMetric {
     val instanceId = sys.props.get("instance.id").getOrElse("<instance-id>")
 
-    override def value: Double = failureCount
-
+    override def value: Double = getFailures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
+    
     override val metricName: String = "JanrainAuthFailures"
     override val unit: StandardUnit = StandardUnit.Count
     override val namespace: String = "Consumer"
@@ -99,24 +98,6 @@ object AuthAnalyzer {
     filtered
   }
 
-  // todo Don't do it this way! Use the Publisher in freestyle-common!
-  // Create and schedule task to run periodically to create failed authentication metrics
-  private def scheduleMetrics(): Unit =
-    Task.schedule(doMetrics(), metricsInterval).unsafePerformAsync(_ match {
-      case -\/(thr) => logger.error(s"Metrics calc failed - ${asString(thr)}")
-      case _ =>
-    })
-
-  private def doMetrics(): Unit = {
-    val failures = getFailures()
-    failureCount = failures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
-    logger.info(s"$failureCount auth failures in $metricsInterval")
-
-    // todo Publish the metric here (refer to freestyle-common)
-
-    // Schedule to run again
-    scheduleMetrics()
-  }
 
 
   private val runnable = new Runnable {
@@ -133,8 +114,11 @@ object AuthAnalyzer {
     }
   }
 
-  // Run asynchronous tasks
+
+  // Register this metric with the publisher
+  CloudWatchMetricPublisher(cloudWatchClient).register(authFailures, 0, 5, MINUTES)
+
+  // Run queue consumer task
   new Thread(runnable).start()
 
-  scheduleMetrics()
 }

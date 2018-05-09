@@ -10,8 +10,6 @@ import com.amazonaws.services.cloudwatch.model.{Dimension, StandardUnit}
 import com.cda._
 import com.cocacola.freestyle.cda.util.cloudwatch.{CloudWatchMetricPublisher, CloudWatchValueMetric}
 import org.slf4j.LoggerFactory
-import scalaz.-\/
-import scalaz.concurrent.Task
 
 import scala.concurrent.duration._
 
@@ -38,12 +36,11 @@ object AuthAnalyzer {
   val cloudWatchClient = AmazonCloudWatchClientBuilder.standard().withCredentials(credentialsProvider).build()
 
 
-
   val authFailures = new CloudWatchValueMetric {
     val instanceId = sys.props.get("instance.id").getOrElse("<instance-id>")
 
     override def value: Double = getFailures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
-    
+
     override val metricName: String = "JanrainAuthFailures"
     override val unit: StandardUnit = StandardUnit.Count
     override val namespace: String = "Consumer"
@@ -51,21 +48,23 @@ object AuthAnalyzer {
       Seq((new Dimension).withName("InstanceId").withValue(instanceId))
   }
 
-
-  // All auth failures are sent to this AuthAnalyzer.
-  // The 'token' is unique for a request and is used to match any
-  // subsequent failures occurring within a predetermined time window.
-  case class FailureEvent(timestamp: LocalDateTime, token: String)
-
-  case class FailureCount(timestamp: LocalDateTime, count: Int = 0)
-
   private val queue = new LinkedBlockingQueue[FailureEvent]
 
+  private val runnable = new Runnable {
+    override def run(): Unit = {
+      while (active) try {
+        update(queue.take())
+        logger.info(s"analyzer status: $map")
+      } catch {
+        case t: Throwable =>
+          logger.error(s"Map update failed - ${asString(t)}")
+      }
+
+      logger.error(s"${getClass.getName} is exiting...")
+    }
+  }
+  
   private var map = Map.empty[String, FailureCount]
-
-  private def withinThreshold(start: LocalDateTime, end: LocalDateTime): Boolean =
-    jDuration.between(start, end).compareTo(threshold) <= 0
-
 
   private var active = true
 
@@ -91,6 +90,9 @@ object AuthAnalyzer {
     }
   }
 
+  private def withinThreshold(start: LocalDateTime, end: LocalDateTime): Boolean =
+    jDuration.between(start, end).compareTo(threshold) <= 0
+
   // Obtain a copy of the map containing all entries with a count > 0 and reset the map
   private def getFailures(): Map[String, FailureCount] = map.synchronized {
     val filtered = map.filter { case (_, failure) => failure.count > 0 }
@@ -98,21 +100,12 @@ object AuthAnalyzer {
     filtered
   }
 
+  // All auth failures are sent to this AuthAnalyzer.
+  // The 'token' is unique for a request and is used to match any
+  // subsequent failures occurring within a predetermined time window.
+  case class FailureEvent(timestamp: LocalDateTime, token: String)
 
-
-  private val runnable = new Runnable {
-    override def run(): Unit = {
-      while (active) try {
-        update(queue.take())
-        logger.info(s"analyzer status: $map")
-      } catch {
-        case t: Throwable =>
-          logger.error(s"Map update failed - ${asString(t)}")
-      }
-
-      logger.error(s"${getClass.getName} is exiting...")
-    }
-  }
+  case class FailureCount(timestamp: LocalDateTime, count: Int = 0)
 
 
   // Register this metric with the publisher

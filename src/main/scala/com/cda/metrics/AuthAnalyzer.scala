@@ -2,8 +2,13 @@ package com.cda.metrics
 
 import java.time.{LocalDateTime, Duration => jDuration}
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit.MINUTES
 
+import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
+import com.amazonaws.services.cloudwatch.model.{Dimension, StandardUnit}
 import com.cda._
+import com.cocacola.freestyle.cda.util.cloudwatch.{CloudWatchMetricPublisher, CloudWatchValueMetric}
 import org.slf4j.LoggerFactory
 import scalaz.-\/
 import scalaz.concurrent.Task
@@ -27,6 +32,25 @@ object AuthAnalyzer {
   // todo Use configuration file for values
   val threshold = jDuration.ofSeconds(30)
   val metricsInterval = Duration(1, MINUTES)
+
+  // todo Use role to get the default client
+  val credentialsProvider = new ProfileCredentialsProvider("cda")
+  val cloudWatchClient = AmazonCloudWatchClientBuilder.standard().withCredentials(credentialsProvider).build()
+
+  private var failureCount = 0d
+
+  // todo For some reason this metric is not showing up
+  val authFailures = new CloudWatchValueMetric {
+    val instanceId = sys.props.get("instance.id").getOrElse("<instance-id>")
+
+    override def value: Double = failureCount
+
+    override val metricName: String = "JanrainAuthFailures"
+    override val unit: StandardUnit = StandardUnit.Count
+    override val namespace: String = "Consumer"
+    override val dimensions: Seq[Dimension] =
+      Seq((new Dimension).withName("InstanceId").withValue(instanceId))
+  }
 
 
   // All auth failures are sent to this AuthAnalyzer.
@@ -75,6 +99,7 @@ object AuthAnalyzer {
     filtered
   }
 
+  // todo Don't do it this way! Use the Publisher in freestyle-common!
   // Create and schedule task to run periodically to create failed authentication metrics
   private def scheduleMetrics(): Unit =
     Task.schedule(doMetrics(), metricsInterval).unsafePerformAsync(_ match {
@@ -84,10 +109,12 @@ object AuthAnalyzer {
 
   private def doMetrics(): Unit = {
     val failures = getFailures()
-    val count = failures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
-    logger.info(s"$count auth failures in $metricsInterval")
-    // todo Generate AWS Metric here
+    failureCount = failures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
+    logger.info(s"$failureCount auth failures in $metricsInterval")
 
+    // todo Publish the metric here (refer to freestyle-common)
+
+    // Schedule to run again
     scheduleMetrics()
   }
 

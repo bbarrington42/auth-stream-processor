@@ -11,9 +11,13 @@ import scalaz.concurrent.Task
 import scala.concurrent.duration._
 
 /*
-  // TODO
-  Queue entries are examined for actual authentication failures. These failures are counted and used to
-  generate cloudwatch metrics.
+  This component receives FailureEvents (janrain authentication failures) and enqueues them on a blocking queue.
+  Events are retrieved and a Map of counts keyed by token is updated. A true authentication failure is assumed to
+  have occurred if there are two failure responses for the same token within the time threshold.
+  A periodic task runs which takes a filtered copy of the Map. The copy contains only those entries having a count > 0.
+  The copied Map is then replaced with an empty one. The counts of the Map copy are tallied and a Metric is generated.
+
+  Note that a more 'production ready' architecture would have this component receiving events from an SQS queue.
  */
 
 object AuthAnalyzer {
@@ -82,6 +86,8 @@ object AuthAnalyzer {
     val failures = resetMap()
     val count = failures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
     logger.info(s"$count auth failures in $metricsInterval")
+    // todo Generate AWS Metric here
+
     scheduleMetrics()
   }
 
@@ -96,10 +102,11 @@ object AuthAnalyzer {
           logger.error(s"Map update failed - ${asString(t)}")
       }
 
-      logger.info(s"${getClass.getName} shutting down...")
+      logger.error(s"${getClass.getName} shutting down...")
     }
   }
 
+  // Run asynchronous tasks
   new Thread(runnable).start()
 
   scheduleMetrics()

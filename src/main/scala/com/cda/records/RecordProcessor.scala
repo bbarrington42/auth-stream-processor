@@ -5,7 +5,7 @@ import java.nio.charset.Charset
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason
 import com.amazonaws.services.kinesis.clientlibrary.types.{InitializationInput, ProcessRecordsInput, ShutdownInput}
 import com.amazonaws.services.kinesis.model.Record
@@ -13,21 +13,29 @@ import com.cda._
 import com.cda.metrics.AuthAnalyzer
 import com.cda.metrics.AuthAnalyzer.FailureEvent
 import org.slf4j.LoggerFactory
-import scalaz.{-\/, \/, \/-}
+import scalaz.\/
 
 import scala.collection.JavaConverters._
 
 /*
-  Extract occurrences of responses to janrain auth requests and sends them to AuthAnalyzer.
+  This component receives all entries of the consumer application log via a Kinesis stream. Each entry is checked
+  against a regular expression to determine if it is a janrain failure response to an auth request. If a failure
+  response is received, a FailureEvent is created and sent to the AuthAnalyzer via a blocking queue.
+  Note that a more 'production ready' architecture would sent events to an SQS queue. Also this process should probably
+  run on multiple hosts behind a load balancer.
  */
+
 object RecordProcessor extends IRecordProcessor {
 
   val logger = LoggerFactory.getLogger(getClass)
 
-  // This is an example of a log record we are trying to match
-  // 2018-05-07 19:30:53,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth response: status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,"error_description":"unknown access token","error":"invalid_argument","stat":"error"}
-  val authResponseRegex =
-  """(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).+janrain auth response: status=error, token=([^,]+)""".r
+  // This is an example of a log record we are trying to match:
+  //
+  // 2018-05-07 19:30:53,767 [ INFO] .c.f.c.s.u.JanrainService {ForkJoinPool-3-worker-3} -> janrain auth response:
+  // status=error, token=gb5hxgc5sthrag4z, response={"request_id":"x955wtqpusset6a9","code":200,
+  // "error_description":"unknown access token","error":"invalid_argument","stat":"error"}
+
+  val authResponseRegex = """(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).+janrain auth response: status=error, token=([^,]+)""".r
 
   val datePattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
@@ -84,6 +92,3 @@ object RecordProcessor extends IRecordProcessor {
 }
 
 
-object RecordProcessorFactory extends IRecordProcessorFactory {
-  override def createProcessor(): IRecordProcessor = RecordProcessor
-}

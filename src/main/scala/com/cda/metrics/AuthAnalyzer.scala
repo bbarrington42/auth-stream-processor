@@ -63,7 +63,7 @@ object AuthAnalyzer {
       logger.error(s"${getClass.getName} is exiting...")
     }
   }
-  
+
   private var map = Map.empty[String, FailureCount]
 
   private var active = true
@@ -91,7 +91,7 @@ object AuthAnalyzer {
   }
 
   private def withinThreshold(start: LocalDateTime, end: LocalDateTime): Boolean =
-    jDuration.between(start, end).compareTo(threshold) <= 0
+    jDuration.between(start, end).abs().compareTo(threshold) <= 0
 
   // Obtain a copy of the map containing all entries with a count > 0 and reset the map
   private def getFailures(): Map[String, FailureCount] = map.synchronized {

@@ -72,6 +72,9 @@ object AuthAnalyzer {
 
   def shutdown(): Unit = active = false
 
+  private def latest(l: LocalDateTime, r: LocalDateTime): LocalDateTime =
+    if (l.isAfter(r)) l else r
+
   /*
     If no entry with a matching token is found, create an entry with a count of zero.
     If an entry with a matching token is found and the timestamps are within the threshold,
@@ -82,16 +85,17 @@ object AuthAnalyzer {
   private def update(failure: FailureEvent): Unit = map.synchronized {
     map.get(failure.token) match {
       case Some(count) =>
+        val recent = latest(failure.timestamp, count.timestamp)
         if (withinThreshold(count.timestamp, failure.timestamp))
-          map += (failure.token -> FailureCount(failure.timestamp, count.count + 1))
-        else map += (failure.token -> FailureCount(failure.timestamp, count.count))
+          map += (failure.token -> FailureCount(recent, count.count + 1))
+        else map += (failure.token -> FailureCount(recent, count.count))
 
       case None => map += (failure.token -> FailureCount(failure.timestamp))
     }
   }
 
   private def withinThreshold(start: LocalDateTime, end: LocalDateTime): Boolean =
-    jDuration.between(start, end).abs().compareTo(threshold) <= 0
+    jDuration.between(start, end).abs.compareTo(threshold) <= 0
 
   // Obtain a copy of the map containing all entries with a count > 0 and reset the map
   private def getFailures(): Map[String, FailureCount] = map.synchronized {

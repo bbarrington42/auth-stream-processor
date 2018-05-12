@@ -71,9 +71,7 @@ object AuthAnalyzer {
   def enqueue(failure: FailureEvent): Unit = queue.put(failure)
 
   def shutdown(): Unit = active = false
-
-  private def latest(l: LocalDateTime, r: LocalDateTime): LocalDateTime =
-    if (l.isAfter(r)) l else r
+  
 
   /*
     If no entry with a matching token is found, create an entry with a count of zero.
@@ -85,7 +83,7 @@ object AuthAnalyzer {
   private def update(failure: FailureEvent): Unit = map.synchronized {
     map.get(failure.token) match {
       case Some(count) =>
-        val recent = latest(failure.timestamp, count.timestamp)
+        val recent = if (failure.timestamp.isAfter(count.timestamp)) failure.timestamp else count.timestamp
         if (withinThreshold(count.timestamp, failure.timestamp))
           map += (failure.token -> FailureCount(recent, count.count + 1))
         else map += (failure.token -> FailureCount(recent, count.count))

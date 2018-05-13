@@ -71,14 +71,14 @@ object AuthAnalyzer {
   def enqueue(failure: FailureEvent): Unit = queue.put(failure)
 
   def shutdown(): Unit = active = false
-  
+
 
   /*
-    If no entry with a matching token is found, create an entry with a count of zero.
     If an entry with a matching token is found and the timestamps are within the threshold,
     increment the count and update the timestamp.
     If a entry with a matching token is found and the timestamps are NOT within the threshold,
     leave the count as is, but update the timestamp.
+    If no entry with a matching token is found, create an entry with a count of zero.
    */
   private def update(failure: FailureEvent): Unit = map.synchronized {
     map.get(failure.token) match {

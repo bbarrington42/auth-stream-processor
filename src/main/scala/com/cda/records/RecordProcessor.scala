@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
   run on multiple hosts behind a load balancer.
  */
 
-object RecordProcessor extends IRecordProcessor {
+class RecordProcessor extends IRecordProcessor {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -79,5 +79,4 @@ object RecordProcessor extends IRecordProcessor {
   }
 
 }
-
 

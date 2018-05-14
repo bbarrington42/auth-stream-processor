@@ -11,8 +11,6 @@ import com.cda._
 import com.cocacola.freestyle.cda.util.cloudwatch.{CloudWatchMetricPublisher, CloudWatchValueMetric}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration._
-
 /*
   This component receives FailureEvents (janrain authentication failures) and enqueues them on a blocking queue.
   Events are retrieved and a Map of counts keyed by token is updated. A true authentication failure is assumed to
@@ -29,7 +27,6 @@ object AuthAnalyzer {
 
   // todo Use configuration file for values
   val threshold = jDuration.ofSeconds(30)
-  val metricsInterval = Duration(1, MINUTES)
 
   // todo Use role to get the default client
   val credentialsProvider = new ProfileCredentialsProvider("cda")
@@ -64,6 +61,7 @@ object AuthAnalyzer {
     }
   }
 
+  @volatile
   private var map = Map.empty[String, FailureCount]
 
   private var active = true
@@ -80,7 +78,7 @@ object AuthAnalyzer {
     leave the count as is, but update the timestamp.
     If no entry with a matching token is found, create an entry with a count of zero.
    */
-  private def update(failure: FailureEvent): Unit = map.synchronized {
+  private def update(failure: FailureEvent): Unit = synchronized {
     map.get(failure.token) match {
       case Some(count) =>
         val recent = if (failure.timestamp.isAfter(count.timestamp)) failure.timestamp else count.timestamp
@@ -88,7 +86,8 @@ object AuthAnalyzer {
           map += (failure.token -> FailureCount(recent, count.count + 1))
         else map += (failure.token -> FailureCount(recent, count.count))
 
-      case None => map += (failure.token -> FailureCount(failure.timestamp))
+      case None =>
+        map += (failure.token -> FailureCount(failure.timestamp))
     }
   }
 
@@ -96,7 +95,7 @@ object AuthAnalyzer {
     jDuration.between(start, end).abs.compareTo(threshold) <= 0
 
   // Obtain a copy of the map containing all entries with a count > 0 and reset the map
-  private def getFailures(): Map[String, FailureCount] = map.synchronized {
+  private def getFailures(): Map[String, FailureCount] = synchronized {
     val filtered = map.filter { case (_, failure) => failure.count > 0 }
     map = map.empty
     filtered

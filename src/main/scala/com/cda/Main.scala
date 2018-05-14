@@ -25,7 +25,7 @@ object Main {
       workerId)
 
   val recordProcessorFactory = new IRecordProcessorFactory {
-    override def createProcessor(): IRecordProcessor = RecordProcessor
+    override def createProcessor(): IRecordProcessor = new RecordProcessor
   }
 
   def main(args: Array[String]): Unit = {

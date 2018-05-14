@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
   run on multiple hosts behind a load balancer.
  */
 
+// Must be a class since the RecordProcessorFactory creates a new instance for every invocation of 'createProcessor'
 class RecordProcessor extends IRecordProcessor {
 
   val logger = LoggerFactory.getLogger(getClass)

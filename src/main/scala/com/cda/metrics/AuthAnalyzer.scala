@@ -61,7 +61,7 @@ object AuthAnalyzer {
     }
   }
 
-  @volatile
+  @volatile // Necessary since this is a var
   private var map = Map.empty[String, FailureCount]
 
   private var active = true

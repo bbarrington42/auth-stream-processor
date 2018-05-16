@@ -18,8 +18,6 @@ ENV=`ec2-describe-tags --filter \"resource-type=instance\" --filter \"resource-i
 # The -s option will suppress the progress bar (not really necessary, but nice when testing this script)
 HOSTNAME=`curl -s http://169.254.169.254/latest/meta-data/local-hostname`
 
-INSTANCE_ID=`curl -s http://169.254.169.254/latest/meta-data/instance-id`
-
 # Script variables
 BASE_DIR=/opt/$APP
 SCRIPT_NAME=$BASE_DIR/bin/$APP
@@ -28,7 +26,7 @@ PID_FILE=/var/lock/subsys/$APP
 # JVM Arguments
 CONFIG_RESOURCE=application_${ENV}.conf
 LOGBACK_CONFIG=logback_${ENV}.xml
-OPTS="-Denv=${ENV} -Dconfig.resource=$CONFIG_RESOURCE -Dapp.name=${APP} -Dlogback.configurationFile=$LOGBACK_CONFIG -Dinstance.id=${INSTANCE_ID} -Ds3.log.folder=$APP"
+OPTS="-Dconfig.resource=$CONFIG_RESOURCE -Dapp.name=${APP} -Dlogback.configurationFile=$LOGBACK_CONFIG"
 
 
 # add debugging

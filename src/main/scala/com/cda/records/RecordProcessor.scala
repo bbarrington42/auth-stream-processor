@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
  */
 
 // Must be a class since the RecordProcessorFactory creates a new instance for every invocation of 'createProcessor'
-class RecordProcessor extends IRecordProcessor {
+class RecordProcessor(authAnalyzer: AuthAnalyzer) extends IRecordProcessor {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -60,7 +60,7 @@ class RecordProcessor extends IRecordProcessor {
     logger.info(s"Processing ${input.getRecords.size()} records")
     input.getRecords.asScala.foreach(find(_).fold(
       thr => logger.error(s"Record processing error - ${asString(thr)}"),
-      _.foreach(AuthAnalyzer.enqueue(_))))
+      _.foreach(authAnalyzer.enqueue(_))))
     try {
       input.getCheckpointer.checkpoint()
     } catch {
@@ -73,7 +73,7 @@ class RecordProcessor extends IRecordProcessor {
   override def shutdown(shutdownInput: ShutdownInput): Unit = {
     val reason = shutdownInput.getShutdownReason
     logger.info(s"Shutting down, reason: $reason")
-    AuthAnalyzer.shutdown()
+    authAnalyzer.shutdown()
 
     if (ShutdownReason.TERMINATE == reason)
       shutdownInput.getCheckpointer.checkpoint()

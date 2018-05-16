@@ -4,11 +4,12 @@ import java.time.{LocalDateTime, Duration => jDuration}
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit.MINUTES
 
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
 import com.amazonaws.services.cloudwatch.model.{Dimension, StandardUnit}
 import com.cda._
+import com.cda.metrics.AuthAnalyzer.{FailureCount, FailureEvent}
 import com.cocacola.freestyle.cda.util.cloudwatch.{CloudWatchMetricPublisher, CloudWatchValueMetric}
+import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
 /*
@@ -21,20 +22,19 @@ import org.slf4j.LoggerFactory
   Note that a more 'production ready' architecture would have this component receiving events from an SQS queue.
  */
 
-object AuthAnalyzer {
+class AuthAnalyzer(environment: String) {
 
   val logger = LoggerFactory.getLogger(getClass)
 
-  // todo Use configuration file for values
-  val threshold = jDuration.ofSeconds(30)
+  val config = ConfigFactory.load()
+  val seconds = config.getInt("app.threshold")
+  val threshold = jDuration.ofSeconds(seconds)
 
-  // todo Use role to get the default client
-  val credentialsProvider = new ProfileCredentialsProvider("cda")
-  val cloudWatchClient = AmazonCloudWatchClientBuilder.standard().withCredentials(credentialsProvider).build()
+  // Use role to get the default client
+  val cloudWatchClient = AmazonCloudWatchClientBuilder.defaultClient()
 
 
   val authFailures = new CloudWatchValueMetric {
-    val instanceId = sys.props.get("instance.id").getOrElse("<instance-id>")
 
     override def value: Double = getFailures.foldLeft(0) { case (z, (_, fc)) => z + fc.count }
 
@@ -42,7 +42,7 @@ object AuthAnalyzer {
     override val unit: StandardUnit = StandardUnit.Count
     override val namespace: String = "Consumer"
     override val dimensions: Seq[Dimension] =
-      Seq((new Dimension).withName("InstanceId").withValue(instanceId))
+      Seq((new Dimension).withName("Environment").withValue(environment.capitalize))
   }
 
   private val queue = new LinkedBlockingQueue[FailureEvent]
@@ -101,18 +101,22 @@ object AuthAnalyzer {
     filtered
   }
 
-  // All auth failures are sent to this AuthAnalyzer.
-  // The 'token' is unique for a request and is used to match any
-  // subsequent failures occurring within a predetermined time window.
-  case class FailureEvent(timestamp: LocalDateTime, token: String)
-
-  case class FailureCount(timestamp: LocalDateTime, count: Int = 0)
-
 
   // Register this metric with the publisher
   CloudWatchMetricPublisher(cloudWatchClient).register(authFailures, 0, 5, MINUTES)
 
   // Run queue consumer task
   new Thread(runnable).start()
+
+}
+
+object AuthAnalyzer {
+
+  // Auth failures for this environment are sent to this AuthAnalyzer.
+  // The 'token' is unique for a request and is used to match any
+  // subsequent failures occurring within a predetermined time window.
+  case class FailureEvent(timestamp: LocalDateTime, token: String)
+
+  case class FailureCount(timestamp: LocalDateTime, count: Int = 0)
 
 }

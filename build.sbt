@@ -11,6 +11,7 @@ libraryDependencies ++= {
     "ch.qos.logback" % "logback-core" % "1.2.3",
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "org.scalaz" %% "scalaz-core" % "7.2.20",
+    "com.typesafe" % "config" % "1.3.3",
     "com.cocacola.freestyle.cda" %% "freestyle-common" % "2.0"
   )
 }

@@ -18,10 +18,10 @@ os: linux
 
 files:
   - source: bin
-    destination: /opt/reporter/bin
+    destination: /opt/auth-check/bin
   - source: lib
-    destination: /opt/reporter/lib
-  - source: scripts/reporter
+    destination: /opt/auth-check/lib
+  - source: scripts/auth-check
     destination: /etc/init.d/
 
 # For deployments to Amazon Linux, Ubuntu Server, or RHEL instances,
@@ -51,7 +51,7 @@ files:
 #      -
 
 permissions:
-  - object: /etc/init.d/reporter
+  - object: /etc/init.d/auth-check
     owner: root
     group: root
     mode: 755

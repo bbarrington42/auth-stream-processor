@@ -1,8 +1,24 @@
+import NativePackagerHelper._
+
+organization := "candid-partners"
 name := "stream-auth-processor"
 
 version := "0.1"
 
 scalaVersion := "2.11.12"
+
+// The default is to have a single directory at the top of the archive with the name of the artifact.
+// We don't want that. The contents of 'code-deploy' and hence appspec.yml MUST be at the top level for CodeDeploy to work.
+// The dirs bin, scripts, & lib will also be at the top level. appspec.yml directs the deployment.
+topLevelDirectory := None
+mappings in Universal ++= contentOf("code-deploy")
+
+
+lazy val root = (project in file(".")).enablePlugins(JavaServerAppPackaging)
+
+
+scalacOptions ++= Seq("-feature", "-deprecation")
+
 
 
 libraryDependencies ++= {
@@ -15,3 +31,8 @@ libraryDependencies ++= {
     "com.cocacola.freestyle.cda" %% "freestyle-common" % "2.0"
   )
 }
+
+
+mainClass in Compile := Some("com.cda.Main")
+
+resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"

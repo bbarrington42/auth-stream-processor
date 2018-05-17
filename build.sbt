@@ -1,7 +1,7 @@
 import NativePackagerHelper._
 
 organization := "candid-partners"
-name := "stream-auth-processor"
+name := "auth-processor"
 
 version := "0.1"
 

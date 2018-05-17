@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -x
 
 LOG_FILE=/var/log/aws/codedeploy-agent/freestyle.log
 APP=auth-processor

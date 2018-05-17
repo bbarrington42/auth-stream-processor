@@ -18,10 +18,10 @@ os: linux
 
 files:
   - source: bin
-    destination: /opt/auth-check/bin
+    destination: /opt/auth-processor/bin
   - source: lib
-    destination: /opt/auth-check/lib
-  - source: scripts/auth-check
+    destination: /opt/auth-processor/lib
+  - source: scripts/auth-processor
     destination: /etc/init.d/
 
 # For deployments to Amazon Linux, Ubuntu Server, or RHEL instances,
@@ -51,7 +51,7 @@ files:
 #      -
 
 permissions:
-  - object: /etc/init.d/auth-check
+  - object: /etc/init.d/auth-processor
     owner: root
     group: root
     mode: 755

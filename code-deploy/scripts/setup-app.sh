@@ -3,7 +3,7 @@
 set -e
 
 LOG_FILE=/var/log/aws/codedeploy-agent/freestyle.log
-APP=auth-check
+APP=auth-processor
 
 echo "setup-app.sh: starting script" >> $LOG_FILE
 

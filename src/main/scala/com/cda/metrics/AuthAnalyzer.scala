@@ -12,6 +12,8 @@ import com.cocacola.freestyle.cda.util.cloudwatch.{CloudWatchMetricPublisher, Cl
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
+
 /*
   This component receives FailureEvents (janrain authentication failures) and enqueues them on a blocking queue.
   Events are retrieved and a Map of counts keyed by token is updated. A true authentication failure is assumed to
@@ -111,6 +113,12 @@ class AuthAnalyzer(environment: String) {
 }
 
 object AuthAnalyzer {
+
+  private val analyzers = mutable.Map.empty[String, AuthAnalyzer]
+
+  def apply(environment: String): AuthAnalyzer = synchronized {
+    analyzers.getOrElseUpdate(environment, new AuthAnalyzer(environment))
+  }
 
   // Auth failures for this environment are sent to this AuthAnalyzer.
   // The 'token' is unique for a request and is used to match any

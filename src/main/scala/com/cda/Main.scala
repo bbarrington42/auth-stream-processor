@@ -19,7 +19,7 @@ object Main {
   def createWorker(env: String): Worker = {
     val workerId = InetAddress.getLocalHost.getCanonicalHostName + ":" + UUID.randomUUID
     val recordProcessorFactory = new IRecordProcessorFactory {
-      override def createProcessor(): IRecordProcessor = new RecordProcessor(new AuthAnalyzer(env))
+      override def createProcessor(): IRecordProcessor = new RecordProcessor(AuthAnalyzer(env))
     }
     val config =
       new KinesisClientLibConfiguration(

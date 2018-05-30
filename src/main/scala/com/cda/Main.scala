@@ -3,7 +3,7 @@ package com.cda
 import java.net.InetAddress
 import java.util.UUID
 
-import com.amazonaws.auth.{AWSCredentialsProvider, InstanceProfileCredentialsProvider}
+import com.amazonaws.auth.InstanceProfileCredentialsProvider
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.{IRecordProcessor, IRecordProcessorFactory}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{KinesisClientLibConfiguration, Worker}
 import com.cda.metrics.AuthAnalyzer
@@ -38,7 +38,7 @@ object Main {
   val credentialsProvider = InstanceProfileCredentialsProvider.getInstance()
 
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = try {
     // Ensure the JVM will refresh the cached IP values of AWS resources.
     java.security.Security.setProperty("networkaddress.cache.ttl", "60")
 
@@ -49,6 +49,9 @@ object Main {
     val workers = envs.map(env => createWorker(env))
 
     workers.foreach(_.run())
+  } catch {
+    case t: Throwable =>
+      logger.error(asString(t))
   }
 }
 

@@ -25,8 +25,7 @@ PID_FILE=/var/lock/subsys/$APP
 
 # JVM Arguments
 CONFIG_RESOURCE=application_${ENV}.conf
-LOGBACK_CONFIG=logback_${ENV}.xml
-OPTS="-Dconfig.resource=$CONFIG_RESOURCE -Dapp.name=${APP} -Dlogback.configurationFile=$LOGBACK_CONFIG"
+OPTS="-Dconfig.resource=$CONFIG_RESOURCE -Dapp.name=${APP}"
 
 
 # add debugging

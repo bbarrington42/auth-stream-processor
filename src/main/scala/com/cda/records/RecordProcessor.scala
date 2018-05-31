@@ -24,6 +24,11 @@ import scala.collection.JavaConverters._
   run on multiple hosts behind a load balancer.
  */
 
+/*
+  Note that the kinesis agent is being used to send the contents of the logs to a kinesis data stream.
+  The agent writes its logs to /var/log/aws-kinesis-agent/aws-kinesis-agent.log
+ */
+
 // Must be a class since the RecordProcessorFactory creates a new instance for every invocation of 'createProcessor'
 class RecordProcessor(authAnalyzer: AuthAnalyzer) extends IRecordProcessor {
 

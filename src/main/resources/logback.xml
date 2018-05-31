@@ -1,0 +1,52 @@
+<configuration>
+
+    <appender name="ROOT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/opt/${app.name}/logs/root.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>/opt/${app.name}/logs/root.%i.log.zip</fileNamePattern>
+
+            <MinIndex>1</MinIndex>
+            <MaxIndex>5</MaxIndex>
+        </rollingPolicy>
+
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>5MB</MaxFileSize>
+        </triggeringPolicy>
+
+        <encoder>
+            <pattern>%d{ISO8601} %5p %-25.25c{2} -> %m%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/opt/${app.name}/logs/application.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>/opt/${app.name}/logs/application.%i.log.zip</fileNamePattern>
+
+            <MinIndex>1</MinIndex>
+            <MaxIndex>5</MaxIndex>
+        </rollingPolicy>
+
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>5MB</MaxFileSize>
+        </triggeringPolicy>
+
+        <encoder>
+            <pattern>%d{ISO8601} %5p %-25.25c{2} -> %m%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <logger name="com.cda" level="debug" additivity="false">
+        <appender-ref ref="ROLLING"/>
+    </logger>
+
+
+    <root level="debug">
+        <appender-ref ref="ROOT"/>
+    </root>
+
+</configuration>

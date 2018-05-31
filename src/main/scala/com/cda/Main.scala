@@ -53,10 +53,15 @@ object Main {
     val appConfig = config.getConfig("app")
     val envs = appConfig.getStringList("env").asScala
 
+    
     // App designed to handle more than one environment. Create a Worker for each.
     val workers = envs.map(env => createWorker(env))
 
-    workers.foreach(_.run())
+    // Each Worker needs to run in its own thread.
+    workers.foreach(worker => new Thread(worker).start)
+    synchronized {
+      wait() // Suspend forever
+    }
   } catch {
     case t: Throwable =>
       logger.error(asString(t))

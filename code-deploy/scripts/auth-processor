@@ -1,0 +1,92 @@
+#!/bin/sh
+# chkconfig: 2345 90 90
+# description: Starts a CDA Component
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+
+RETVAL=0
+
+export EC2_HOME=/opt/aws/apitools/ec2
+export PATH=$PATH:/opt/aws/bin:$EC2_HOME/bin
+export JAVA_HOME=/usr/lib/jvm/jre
+
+APP=`ec2-describe-tags --filter \"resource-type=instance\" --filter \"resource-id=$(ec2-metadata -i | cut -d ' ' -f2)\" --filter \"key=AppType\" | cut -f5`
+ENV=`ec2-describe-tags --filter \"resource-type=instance\" --filter \"resource-id=$(ec2-metadata -i | cut -d ' ' -f2)\" --filter \"key=Environment\" | cut -f5`
+
+# The -s option will suppress the progress bar (not really necessary, but nice when testing this script)
+HOSTNAME=`curl -s http://169.254.169.254/latest/meta-data/local-hostname`
+
+# Script variables
+BASE_DIR=/opt/$APP
+SCRIPT_NAME=$BASE_DIR/bin/$APP
+PID_FILE=/var/lock/subsys/$APP
+
+# JVM Arguments
+CONFIG_RESOURCE=application_${ENV}.conf
+OPTS="-Dconfig.resource=$CONFIG_RESOURCE -Dapp.name=${APP}"
+
+
+# add debugging
+debug() {
+    OPTS="$OPTS -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+    start
+}
+
+start() {
+        echo -n $"Starting $APP:"
+        if [ -f $PID_FILE ] ; then
+                echo -n $"$APP already started!"
+                failure
+                echo
+                return
+        fi
+
+        JAVA_OPTS=$OPTS $SCRIPT_NAME > /dev/null 2>&1 &
+
+        RETVAL=$?
+        PID=$!
+        [ "$RETVAL" = 0 ] && echo $PID > $PID_FILE
+        echo
+}
+
+stop() {
+        echo -n $"Stopping $APP:"
+        killproc -p $PID_FILE /usr/bin/java
+        RETVAL=$?
+        [ "$RETVAL" = 0 ] && rm -f $PID_FILE
+}
+
+case "$1" in
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        debug)
+                debug
+                ;;
+        restart)
+                stop
+                start
+                ;;
+        condrestart)
+                if [ -f $PID_FILE ] ; then
+                        stop
+                        # avoid race
+                        sleep 3
+                        start
+                fi
+                ;;
+        status)
+                status java
+                RETVAL=$?
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|restart|condrestart|status}"
+                RETVAL=1
+esac
+exit $RETVAL
+

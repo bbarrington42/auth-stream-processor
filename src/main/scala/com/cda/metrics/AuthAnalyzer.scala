@@ -24,7 +24,7 @@ import scala.collection.mutable
   Note that a more 'production ready' architecture would have this component receiving events from an SQS queue.
  */
 
-class AuthAnalyzer(environment: String) {
+class AuthAnalyzer(val environment: String) {
 
   val logger = LoggerFactory.getLogger(getClass)
 
@@ -53,7 +53,7 @@ class AuthAnalyzer(environment: String) {
     override def run(): Unit = {
       while (active) try {
         update(queue.take())
-        logger.info(s"analyzer status: $map")
+        logger.info(s"analyzer status for env $environment: $map")
       } catch {
         case t: Throwable =>
           logger.error(s"Map update failed - ${asString(t)}")

@@ -57,12 +57,12 @@ class RecordProcessor(authAnalyzer: AuthAnalyzer) extends IRecordProcessor {
 
 
   override def initialize(initializationInput: InitializationInput): Unit =
-    logger.info(s"Initializing... ${initializationInput.getShardId}")
+    logger.info(s"Initializing env ${authAnalyzer.environment}... ${initializationInput.getShardId}")
 
 
   // Filter for errors and send them to the analyzer
   override def processRecords(input: ProcessRecordsInput): Unit = {
-    logger.info(s"Processing ${input.getRecords.size()} records")
+    logger.info(s"Processing ${input.getRecords.size()} records for env ${authAnalyzer.environment}")
     input.getRecords.asScala.foreach(find(_).fold(
       thr => logger.error(s"Record processing error - ${asString(thr)}"),
       _.foreach(authAnalyzer.enqueue(_))))

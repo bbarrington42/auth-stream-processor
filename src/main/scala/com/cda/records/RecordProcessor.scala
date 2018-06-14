@@ -26,6 +26,9 @@ import scala.collection.JavaConverters._
 
 /*
   Note that the kinesis agent is being used to send the contents of the logs to a kinesis data stream.
+  The kinesis data stream follows the naming convention: 'consumer-logs-kinesis-stream-' + ENV, where ENV is one of:
+  'dev', 'test', 'prod-blue', or 'prod-green'.
+
   The agent writes its logs to /var/log/aws-kinesis-agent/aws-kinesis-agent.log
  */
 

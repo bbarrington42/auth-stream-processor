@@ -24,6 +24,8 @@ object Main {
   // The role associated with the EC2 instance will provide our credentials
   val credentialsProvider = InstanceProfileCredentialsProvider.getInstance()
 
+  val kinesisStreamPrefix = "consumer-logs-kinesis-stream-"
+
 
   def createWorker(env: String): Worker = {
     val workerId = InetAddress.getLocalHost.getCanonicalHostName + ":" + UUID.randomUUID
@@ -38,7 +40,7 @@ object Main {
     val config =
       new KinesisClientLibConfiguration(
         "auth-stream-processor-" + env,
-        env + "LogStream",
+        kinesisStreamPrefix + env,
         credentialsProvider,
         workerId)
     logger.info(s"Creating Worker for env $env with workerId $workerId")
